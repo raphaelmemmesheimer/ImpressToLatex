@@ -12,25 +12,25 @@ Dependecies: pyUNO
 
 on debian like machines, the next line should do the job:
 
-'$ apt-get install python-uno'
+`$ apt-get install python-uno`
 
 
 ## 1) Start Open/Libre Office like:
 
-'$ <executable> --accept="socket,host=localhost,port=2002;urp;StarOffice.ServiceManager"'
+`$ <executable> --accept="socket,host=localhost,port=2002;urp;StarOffice.ServiceManager"`
 
-for instance <executable> = libreoffice
+for instance `<executable> = libreoffice`
 
 ## 2) Run the Script
 
-'$ ImpressToLatex.py <InputFileName> <OutPutFileName>'
+`$ ImpressToLatex.py <InputFileName> <OutPutFileName>`
 
 Now the script iterates over all elements on all pages and handels them speratly.
 
-*Title elements will be exported as beamer frames
-*Text elements will be exported as an itemize block
-*Shapes and Images will be exported as *.png image files ans used as an includegraphics tag 
-*OLE2 Shapes such as Visio Drawings will be exported as *.eps files
+* Title elements will be exported as beamer frames
+* Text elements will be exported as an itemize block
+* Shapes and Images will be exported as *.png image files ans used as an includegraphics tag 
+* OLE2 Shapes such as Visio Drawings will be exported as *.eps files
 
 All images will be stored in an "images" subfolder
 
@@ -40,6 +40,6 @@ There is also a processText function, which handles a bunch of unicode or reserv
 
 I used the following command:
 
-'$ pdflatex -shell-escape <texfile>'
+`$ pdflatex -shell-escape <texfile>`
 
 the "-shell-escape" parameter is needed in case the script includes some *.eps files
