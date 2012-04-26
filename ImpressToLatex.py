@@ -168,7 +168,7 @@ texHead = '''\documentclass[10pt,a4paper]{beamer}
 
 \graphicspath{{./images/}}
 
-\\author{Dr.-Ing. Yannick Caulier }
+\\author{Name}
 \\begin{document}
 \maketitle\n'''
 
