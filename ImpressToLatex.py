@@ -1,6 +1,27 @@
 # coding: utf-8
 
-# start libreoffice like : libreoffice -accept="socket,host=localhost,port=2002;urp;StarOffice.ServiceManager"
+
+#This program is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 2 of the License, or
+#(at your option) any later version.
+
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with this program; if not, write to the Free Software
+#Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+#Copyright (C) Raphael Memmesheimer , 2012
+
+
+
+# start libreoffice like : libreoffice --accept="socket,host=localhost,port=2002;urp;StarOffice.ServiceManager"
+
+
 
 import uno
 import unohelper
@@ -25,7 +46,6 @@ def write_png(desktop, doc, url, ctx, element):
 	graphic_filter = smgr.createInstanceWithContext(
 	    "com.sun.star.drawing.GraphicExportFilter", ctx)
 	graphic_filter.setSourceDocument(collection)
-	#print "[GRAPHIC SUPPORTED EXPORT FILES]"+str(graphic_filter.getSupportedMimeTypeNames())
 	graphic_filter.filter(tuple(args))
 
 	
@@ -50,7 +70,6 @@ def writeEPS(desktop, doc, url, ctx, element):
 	graphic_filter = smgr.createInstanceWithContext(
 	    "com.sun.star.drawing.GraphicExportFilter", ctx)
 	graphic_filter.setSourceDocument(collection)
-	#print "[asdasdasd]"+str(graphic_filter.getSupportedMimeTypeNames())
 	graphic_filter.filter(tuple(args))
 
 
@@ -79,8 +98,8 @@ replaceCharTable = [["\\","\\textbackslash "],
 					["m","a"], #todo
 					#[")","!SPECIAL CHAR! "],
 					[""," $\\rightarrow$ "],
-					["°", "\degree"], #todo
-					["↑"," $\\uparrow$ "], #todo
+					["°", "\degree"], 
+					["↑"," $\\uparrow$ "], 
 					["↓","$ \\downarrow$ "],
 					["↔"," $\leftrightarrow$ "],
 					[""," $\Omega$ "],
@@ -120,7 +139,7 @@ replaceCharTable = [["\\","\\textbackslash "],
 					["", " "],
 					[""," "],
 					["", " "]
-					] #todo       ½      
+					] 
 
 def processText(s): # replace special characters
 	for r in replaceCharTable:
@@ -162,23 +181,16 @@ texHead = '''\documentclass[10pt,a4paper]{beamer}
 \usepackage{pstricks}
 \usepackage{gensymb}
 
-\def\\twolang#1#2{#1}
-\let\\2=\\twolang
-
-
 \graphicspath{{./images/}}
 
 \\author{Name}
 \\begin{document}
 \maketitle\n'''
 
-#texFile = open(os.path.splitext(inputFilename)[0]+"tex", "w")
 if len(sys.argv) >= 2:
 	outputFilename = sys.argv[2]
 else:
 	outputFilename = os.path.basename(os.path.splitext(inputFilename)[0] + '.tex')
-#outputFilename = "output.tex"
-#os.path.isfile(fname)
 if os.path.exists(outputFilename):
 	os.remove(outputFilename)
 
@@ -195,10 +207,6 @@ try:
 		page = document.DrawPages.getByIndex(i)
 		for j in range(page.Count): #iterate over page elements
 			element = page.getByIndex(j)
-			#print type(element)
-			#print element.Name
-			#print element.Text.getString()
-			#print "\t"+str(element)
 			if 'com.sun.star.presentation.TitleTextShape' in element.SupportedServiceNames: #title
 				s = element.Text.getString()
 				s = processText(unicode(s).encode("utf-8"))
@@ -210,40 +218,30 @@ try:
 	
 			elif 'com.sun.star.drawing.TextShape' in element.SupportedServiceNames:#text as itemize
 				lines = element.Text.getString().split("\n")
-				print lines
-				#texFile.write(element.Text.getString()+"\n")
-				#print lines 
 				texFile.write("\\begin{itemize} \n")
 				for line in lines:
 					if line.strip() == "": # empty items
 						continue
-					line = processText(unicode(line).encode("utf-8")) #line.replace("\\", "\\textbackslash ") # replace backslash
+					line = processText(unicode(line).encode("utf-8"))
 					texFile.write("\t \item "+str(line)+"\n")
 				texFile.write("\\end{itemize} \n")
 	
 			elif 'com.sun.star.drawing.GraphicObjectShape' in element.SupportedServiceNames: #graphics
 				graphicsFileName = element.GraphicStreamURL
-				#graphicsFileName = "images/%(page)04d_%(element)03d_image.png" %{"page": i, "element": j}
 				if graphicsFileName:
 					relpng_filename = "images/"+os.path.basename(os.path.splitext(graphicsFileName)[0] + '.png')
 					
 					print "[GRAPHIC] "+ relpng_filename
-					
-					#print png_filename
 					png_filename = os.path.expanduser(relpng_filename)
 					png_filename = os.path.abspath(png_filename)
 					png_url = unohelper.systemPathToFileUrl(png_filename)
 					write_png(desktop, document, png_url, context, element)
 					x = element.getPosition().X/10000.0
 					y = element.getPosition().Y/10000.0
-					viewport = "viewport= %(x)d %(y)d %(width)d %(height)d" %{"x": x, "y": y,"width": x+(element.getSize().Width/1000),"height": y+(element.getSize().Height/1000)} 
-					print "[Viewport] "+ viewport+"\t" +str(element.getSize().Width)+"\t"+ str(element.getSize().Height)
 					texFile.write("\\rput("+str(x)+", "+str(y)+"){\includegraphics[scale=0.2]{"+os.path.basename(relpng_filename)+"}} %IMAGE \n")
-					#texFile.write("\includegraphics[width=10mm]{"+relpng_filename+"} %IMAGE\n")
-					#texFile.write("\includegraphics["+viewport+"]{"+relpng_filename+"} %IMAGE\n")
-	
+
+
 			elif 'com.sun.star.drawing.OLE2Shape' in element.SupportedServiceNames: #hopefully stuff like visio drawings, there is an error in exporting these kind of data with libreoffice (blank file)
-				print ""
 				relemf_filename = "images/%(page)04d_%(element)03d_diagram.eps" %{"page": i, "element": j}
 				emfFilename = os.path.expanduser(relemf_filename)
 				emfFilename = os.path.abspath(emfFilename)
@@ -251,28 +249,18 @@ try:
 				print "[EPS FILE] "+relemf_filename
 				width =  int(element.getSize().Width)
 				height = int(element.getSize().Height)
-				print width, height
-				if relemf_filename not in ["images/0048_004_diagram.eps", "images/0058_003_diagram.eps"] :
-					writeEPS(desktop, document, emfUrl, context, element)
-				#textLine = "\includegraphics[width="+str(width)+"mm, height="+str(height)+"mm]{"+relemf_filename+"} %DIAGRAM \n" # %{"width": width,"height": height}
-				#print textLine
-				#texFile.write(textLine)includegraphics
+				#print width, height
+				writeEPS(desktop, document, emfUrl, context, element)
 				texFile.write("\includegraphics[width=10mm]{"+os.path.basename(relemf_filename)+"} % \n")
 	
 	
 			elif 'com.sun.star.drawing.Shape' in element.SupportedServiceNames: #
-				if element.getSize().Width == 1998 and element.getSize().Height == 2002:
-					print "[FILTER CIRCLE]"
-					continue # filter ugly circles
 				relpng_filename = "images/%(page)04d_%(element)03d_shape.png" %{"page": i, "element": j}
 				png_filename = os.path.expanduser(relpng_filename)
 				png_filename = os.path.abspath(png_filename)
 				png_url = unohelper.systemPathToFileUrl(png_filename)
 				print "[SHAPE] "+relpng_filename, png_filename, element.getSize().Width, element.getSize().Height
 				write_png(desktop, document, png_url, context, element);
-
-				#viewport = "viewport %(x) %(y) %(width) %(height)" %{"x": element.getPosition().X, "y": element.getPosition().Y,"width": element.getSize().Width,"height": element.getSize().Height} 
-				#print "[Viewport] "+ viewport+"\t" +str(element.getSize().Width)+"\t"+ str(element.getSize().Height)
 				texFile.write("\includegraphics[width=10mm]{"+os.path.basename(relpng_filename)+"} %SHAPE \n")
 
 	
