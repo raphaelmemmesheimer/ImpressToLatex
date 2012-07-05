@@ -117,31 +117,38 @@ replaceCharTable = [["\\","\\textbackslash "],
 		[""," $\\tau$ "],
 		["", " $\\beta$ "],
 		["", " !!!SPECIALCHAR!!! !(underscore c)! "],
+		["", " $\Phi$ "],
+		["Σ", " $\sum$ "],
 		#["", " !SPECIALCHAR! "],
-		["", " !SEPCIALCHAR! "],
-		["≈", "!SPECIALCHAR! "],
-		[""," !SPECIALCHAR! "],
-		[""," !SPECIALCHAR! "],
-		["", " !SPECIALCHAR! "],
-		["θ", " !SPECIALCHAR! "],
-		["", " !SPECIALCHAR! "],
-		["≥", " !SPECIALCHAR! "],
-		["_", " !SPECIALCHAR! "],
-["", " !SPECIALCHAR! "],
-					["", " !SPECIALCHAR! "],
-					["", " !SPECIALCHAR! "],
-					["", " !SPECIALCHAR! "],
-					["", " !SPECIALCHAR! "],
-					["½", " !SPECIALCHAR! "],
-					["", " !SPECIALCHAR! "],
-					["", " !SPECIALCHAR! "],
-					["", " !SPECIALCHAR! "],
-					["", " !SPECIALCHAR! "],
-					["", " "],
-					["", " "],
-					[""," "],
-					["", " "]
-					] #todo       ½      
+		#["", " !SEPCIALCHAR! "],
+		["≈", " $\\approx$ "],
+		[""," $\in$ "],
+		#[""," !SPECIALCHAR! "],
+		#[""," !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		#["θ", " !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		#["≥", " !SPECIALCHAR! "],
+		["_", "\_"],
+		#["", " !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		["½", " !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		#["", " !SPECIALCHAR! "],
+		["", " "],
+		["", " "],
+		[""," "],
+		["", " "],
+		["~", " $\\sim$ "],
+		["" , "$ \kappa $ "],
+		["…", "$\dots$"],
+		["≥"," $\geq$ "]
+		] #todo       ½      
 
 def processText(s): # replace special characters
 	for r in replaceCharTable:
@@ -163,6 +170,7 @@ def isFloat(s):
 	#usage()
 	#sys.exit(0)
 
+#os.system('/opt/openoffice.org3/program/soffice -accept="socket,host=localhost,port=2002;urp;StarOffice.ServiceManager" &')
 
 inputFilename = ""
 outputFilename = ""
@@ -173,11 +181,15 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Converting an (Libre|Open) Office Impress readable presentation to a Latex file',epilog='https://github.com/airglow/ImpressToLatex')
 	parser.add_argument('input', metavar='InputFilename', type=str,  help='the file to convert, preferably .odp')
 	parser.add_argument('output', metavar='OutputFilename', type=str,  help='the resulting .tex file')
+	parser.add_argument('-start', metavar='start', type=int,  help='Start Page', default = 0)
+	parser.add_argument('-end', metavar='end', type=int,  help='End Page', default = -1)
 	parser.add_argument('--version',dest="version", action="store_true", help="print version")
 	parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help="show some processing info")
 	parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="show some debugging info")
 	parser.add_argument('-ps', '--parse_section', dest='parse_section', action='store_true', help="trying to parse section, subsection, subsubsection from slide title")
 	parser.add_argument('-pi', '--parse_items', dest='parse_item', action='store_true', help="trying to parse nested items")
+	parser.add_argument('-ur', '--use_rput', dest='use_rput', action='store_true', help="image positioning will be done rput")
+
 	#TODO parameter ideas
 	#-tex template e.g with placeholder, where the content should be placed
 	#-user defined image path
@@ -186,22 +198,18 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	inputFilename = args.input
 	outputFilename = args.output
+	startPageNo = args.start
+	endPageNo = args.end
 	debug = args.debug
 	verbose = args.verbose
+	use_rput = args.use_rput
 	parse_section = args.parse_section
 	parse_item = args.parse_item
 	if args.version:
 		print "ImpressToLatex Version: "+impressToLatexVersion
 		sys.exit(3)
 
-
-print inputFilename, outputFilename
-
-
-
-#inputFilename = sys.argv[1]
 inputFileUrl = unohelper.systemPathToFileUrl(inputFilename)
-
 
 #establish conection
 local = uno.getComponentContext();
@@ -211,7 +219,8 @@ desktop = context.ServiceManager.createInstanceWithContext("com.sun.star.frame.D
 #document = desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ()) # new document
 document = desktop.loadComponentFromURL(inputFileUrl ,"_blank", 0, ()) # existing document
 
-pageCnt = document.DrawPages.Count;
+pageCnt = document.DrawPages.Count
+print pageCnt
 
 texHead = '''\documentclass[10pt,a4paper]{beamer}
 \usepackage[utf8]{inputenc}
@@ -249,7 +258,7 @@ texFile = open(outputFilename, "w")
 texFile.write(texHead)
 texFile.write("");
 
- 
+pageBody = ""
 
 
 firstTitle = True
@@ -263,28 +272,48 @@ subSubSection = ""
 
 def closeFrame():
 	global frameOpened
+	global pageBody
 	if not firstTitle and frameOpened:
+		texFile.write(pageBody)
+		pageBody = ""
 		texFile.write("\\end{frame} %close frame \n\n\n") 
 		frameOpened = False
 
 def writeLinesAsItemize(lines, prefix = ""):
+	global pageBody
 	#old implementation (each line results in an itemize entry)				
-	texFile.write(prefix+"\t\\begin{itemize} \n")
+	pageBody += prefix+"\t\\begin{itemize} \n"
 	for line in lines:
 		if line.strip() == "": # empty items
 			continue
 		line = processText(unicode(line).encode("utf-8")) #line.replace("\\", "\\textbackslash ") # replace backslash
-		texFile.write(prefix+"\t\t\item "+str(line)+"\n")
-	texFile.write(prefix+"\t\\end{itemize} \n")
+		print line
+		pageBody += prefix+"\t\t\item "+str(line)+"\n"
+	pageBody += prefix+"\t\\end{itemize} \n"
+
+def addImageToPageBody(imgFileName, posx = 0, posy = 0, comment = ""):
+	global pageBody
+	global use_rput
+	line = "\t"
+	if use_rput:
+		line += "\\rput("+str(posx)+", "+str(posy)+"){"
+	line += "\includegraphics[width=.4\linewidth]{"+imgFileName+"}"
+	if use_rput:
+		line+="}"
+	if comment:
+		line += "%"+comment
+	pageBody += line+"\n"
 
 
 #sys.exit(0)
 #try:
-for i in range(0, pageCnt): # iterate over pages range(pageCnt)
+for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
+	closeFrame()
 	page = document.DrawPages.getByIndex(i)
 	if verbose:
 		print "\n[INFO] Processing Page %(page)04d/%(pages)04d\n" %{"page": i, "pages": pageCnt - 1}
 	for j in range(page.Count): #iterate over page elements
+		print page.Count, j
 		element = page.getByIndex(j)
 		#print type(element)
 		if debug:
@@ -299,6 +328,8 @@ for i in range(0, pageCnt): # iterate over pages range(pageCnt)
 		y = element.getPosition().Y/10000.0
 
 		if 'com.sun.star.presentation.TitleTextShape' in element.SupportedServiceNames: #title
+			print "[Title]"
+			#closeFrame();
 			s = element.Text.getString()
 			s = processText(unicode(s).encode("utf-8"))
 
@@ -327,14 +358,23 @@ for i in range(0, pageCnt): # iterate over pages range(pageCnt)
 								subSubSection = newSubSubSection
 								#print newSubSubSection;
 
-			closeFrame();
-			texFile.write("\\begin{frame}")
+			texFile.write("\\begin{frame}\n")
 			if parse_section:
-				texFile.write("\\frame{\\frametitle{"+subSubSection+"} \n")
+				title = subSubSection
+				if not title:
+					title = subSection
+				if not title:
+					title = section
+				if title:
+					print "Title", title
+					texFile.write("\t\\frametitle{"+subSubSection+"} \n")
 			else:
-				texFile.write("\\frametitle{"+s+"} \n")
+				texFile.write("\t\\frametitle{"+s+"} \n")
 			firstTitle = False
 			frameOpened = True
+			#texFile.write(pageBody)
+			#print pageBody
+			#pageBody = ""
 
 		elif 'com.sun.star.drawing.TextShape' in element.SupportedServiceNames:#text as itemize
 			if verbose:
@@ -352,32 +392,32 @@ for i in range(0, pageCnt): # iterate over pages range(pageCnt)
 			if parse_item:
 				a = element.createEnumeration();
 				lastNumberingLevel = -1
-				el = a.nextElement()
+				#el = a.nextElement()
 				while a.hasMoreElements():
 					#print el
 					el = a.nextElement()
 					text = processText(unicode(el.getString()).encode("utf-8")).strip()
-					#if text :
-					#print el, text
-					if el.ImplementationName == "SvxUnoTextContent":
-						texFile.write(text)
-						if debug:
-							print text
-						continue
+					if text :
+						print text
+					#if el.ImplementationName == "SvxUnoTextContent":
+						#texFile.write(text)
+						#if debug:
+							#print text
+						#continue
 					tabIndent = "\t"*el.NumberingLevel
+					print "numberinglevel", el.NumberingLevel, lastNumberingLevel
 					if el.NumberingLevel > lastNumberingLevel and el.NumberingLevel >= 1:
-						texFile.write(tabIndent+"\\begin{itemize} \n")
+						pageBody += tabIndent+"\\begin{itemize} \n"
 					if el.NumberingLevel < lastNumberingLevel:
-						texFile.write(tabIndent+"\t\\end{itemize} \n") #close all opened begin blocks
-
+						tabIndent+"\t\\end{itemize} \n" #close all opened begin blocks
 					if text:
 						if el.NumberingLevel >= 1: #enumerations
-							texFile.write(tabIndent+"\t\item "+text+"\n")
+							pageBody += tabIndent+"\t\item "+text+"\n"
 						else:
-							texFile.write(text+"\n") #standard text
+							pageBody += text+"\n" #standard text
 					print el.NumberingLevel, text
 					#el = a.nextElement()
-					#print "aaaaaaaaaaaa", (not a.hasMoreElements()) or el.NumberingLevel < lastNumberingLevel, el.NumberingLevel < lastNumberingLevel, not a.hasMoreElements(), el.NumberingLevel, lastNumberingLevel
+					print "aaaaaaaaaaaa", (not a.hasMoreElements()) or el.NumberingLevel < lastNumberingLevel, el.NumberingLevel < lastNumberingLevel, not a.hasMoreElements(), el.NumberingLevel, lastNumberingLevel
 					#print a
 					lastNumberingLevel = el.NumberingLevel
 
@@ -392,7 +432,7 @@ for i in range(0, pageCnt): # iterate over pages range(pageCnt)
 								tabCnt = levelDifference - cnt 
 							else:
 								tabCnt = lastNumberingLevel
-							texFile.write("\t"*(tabCnt)+"\\end{itemize} \n") #close all opened begin blocks
+							pageBody += "\t"*(tabCnt)+"\\end{itemize} \n" #close all opened begin blocks
 			else:
 			#old implementation (each line results in an itemize entry)				
 				writeLinesAsItemize(lines)
@@ -404,13 +444,14 @@ for i in range(0, pageCnt): # iterate over pages range(pageCnt)
 			if graphicsFileName:
 				releps_filename = "images/"+os.path.basename(os.path.splitext(graphicsFileName)[0] + '.eps')
 				if verbose:
-					print "[GRAPHIC] "+ relpng_filename
+					print "[GRAPHIC] "+ releps_filename
 
 				eps_filename = os.path.expanduser(releps_filename)
-				eps_filename = os.path.abspath(png_filename)
+				eps_filename = os.path.abspath(eps_filename)
 				eps_url = unohelper.systemPathToFileUrl(eps_filename)
-				writeEPS(desktop, document, png_url, context, element)
-				texFile.write("\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relpng_filename))[0]+"}} %IMAGE \n")
+				writeEPS(desktop, document, eps_url, context, element)
+				addImageToPageBody(os.path.splitext(os.path.basename(releps_filename))[0], x, y, "IMAGE")
+				#pageBody += "\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(releps_filename))[0]+"}} %IMAGE \n"
 
 		elif 'com.sun.star.drawing.OLE2Shape' in element.SupportedServiceNames: #hopefully stuff like visio drawings, there is an error in exporting these kind of data with libreoffice (blank file)
 			relemf_filename = "images/%(page)04d_%(element)03d_diagram.eps" %{"page": i, "element": j}
@@ -427,13 +468,13 @@ for i in range(0, pageCnt): # iterate over pages range(pageCnt)
 			if relemf_filename not in ["images/0048_004_diagram.eps", "images/0058_003_diagram.eps"] :
 				writeEPS(desktop, document, emfUrl, context, element)
 			#print textLine
-			
-			texFile.write("\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relemf_filename))[0]+"}} %VECTOR GRAPHIC \n")
+			addImageToPageBody(os.path.splitext(os.path.basename(relemf_filename))[0], x, y, "VECTOR GRAPHIC")	
+			#pageBody += "\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relemf_filename))[0]+"}} %VECTOR GRAPHIC \n"
 
 
 		elif 'com.sun.star.drawing.Shape' in element.SupportedServiceNames: #485 479
 			# filter 
-			if element.getSize().Width == 485 and element.getSize().Height == 479:
+			if element.getSize().Width == 3197 and element.getSize().Height == 3201:
 				if verbose:
 					print "[FILTER CIRCLE]"
 				continue # filter ugly circles
@@ -443,17 +484,18 @@ for i in range(0, pageCnt): # iterate over pages range(pageCnt)
 			png_url = unohelper.systemPathToFileUrl(png_filename)
 			if verbose:
 				print "[SHAPE] "+relpng_filename, png_filename, element.getSize().Width, element.getSize().Height
+			comment = ""
 			if "com.sun.star.drawing.Text" in element.SupportedServiceNames:
 				text = element.Text.getString()
 				if debug:
 					print text
-				comment = ""
 				if text:
 					lines = text.split("\n")
 					writeLinesAsItemize(lines, "%")
 					#comment = "%"
 			writeEPS(desktop, document, png_url, context, element);
-			texFile.write(comment+"\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relpng_filename))[0]+"}} %SHAPE \n")
+			addImageToPageBody(os.path.splitext(os.path.basename(relpng_filename))[0], x, y, "SHAPE")
+			#pageBody += comment+"\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relpng_filename))[0]+"}} %SHAPE \n"
 
 
 closeFrame()
