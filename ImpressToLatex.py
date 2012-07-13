@@ -270,13 +270,13 @@ subSubSection = ""
 	#pageCnt = int(sys.argv[3])
 	#print pageCnt
 
-def closeFrame():
+def closeFrame(force = False):
 	global frameOpened
 	global pageBody
-	if not firstTitle and frameOpened:
+	if (not firstTitle and frameOpened) or force:
 		texFile.write(pageBody)
-		pageBody = ""
 		texFile.write("\\end{frame} %close frame \n\n\n") 
+		pageBody = ""
 		frameOpened = False
 
 def writeLinesAsItemize(lines, prefix = ""):
@@ -307,6 +307,9 @@ def addImageToPageBody(imgFileName, posx = 0, posy = 0, comment = ""):
 
 #sys.exit(0)
 #try:
+if endPageNo == -1:
+	endPageNo = pageCnt
+
 for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 	closeFrame()
 	page = document.DrawPages.getByIndex(i)
@@ -323,7 +326,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 		#print element.Text.getString()
 		#print "\t"+str(element)
 
-		#TODO: Calc a better, more correct, x/y position for images
+		#TODO: Calc a better, more correct x/y position for images
 		x = element.getPosition().X/10000.0
 		y = element.getPosition().Y/10000.0
 
@@ -496,9 +499,10 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 			writeEPS(desktop, document, png_url, context, element);
 			addImageToPageBody(os.path.splitext(os.path.basename(relpng_filename))[0], x, y, "SHAPE")
 			#pageBody += comment+"\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relpng_filename))[0]+"}} %SHAPE \n"
+		print pageBody
 
 
-closeFrame()
+closeFrame(True)
 #except Exception, e:
 	#raise e
 #finally:
