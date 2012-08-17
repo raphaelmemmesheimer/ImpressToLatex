@@ -147,7 +147,10 @@ replaceCharTable = [["\\","\\textbackslash "],
 		["~", " $\\sim$ "],
 		["" , "$ \kappa $ "],
 		["…", "$\dots$"],
-		["≥"," $\geq$ "]
+		["≥"," $\geq$ "],
+		["θ", " $\\theta$ "],
+		["‘", "'"],
+		["’", "'"],
 		] #todo       ½      
 
 def processText(s): # replace special characters
@@ -290,6 +293,9 @@ def writeLinesAsItemize(lines, prefix = ""):
 		print line
 		pageBody += prefix+"\t\t\item "+str(line)+"\n"
 	pageBody += prefix+"\t\\end{itemize} \n"
+
+
+
 
 def addImageToPageBody(imgFileName, posx = 0, posy = 0, comment = ""):
 	global pageBody
