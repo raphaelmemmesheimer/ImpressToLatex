@@ -26,6 +26,7 @@ import sys
 import subprocess
 import getopt
 import argparse
+import ast
 from com.sun.star.beans import PropertyValue
 from com.sun.star.beans.PropertyState import DIRECT_VALUE
 
@@ -66,92 +67,12 @@ def writeEPS(desktop, doc, url, ctx, element):
 	args = []
 	args.append(PropertyValue("MediaType", 0, "image/x-eps", DIRECT_VALUE))
 	args.append(PropertyValue("URL", 0, url, DIRECT_VALUE))
-	#args.append(PropertyValue("FilterData", 0 ,tuple(filterData), DIRECT_VALUE))
 
 	graphic_filter = smgr.createInstanceWithContext(
 			"com.sun.star.drawing.GraphicExportFilter", ctx)
 	graphic_filter.setSourceDocument(collection)
-	#print "[asdasdasd]"+str(graphic_filter.getSupportedMimeTypeNames())
 	graphic_filter.filter(tuple(args))
 
-
-#character replacement table, order dependend
-replaceCharTable = [["\\","\\textbackslash "],
-		["%","\\%"],
-		["$", " !SPECIALCHAR! "],
-		["≠"," $ \\neq $ "],
-		["„", "\\quotedblbase "],
-		["“","\\textquotedblleft "],
-		["Ü",'\\"U'],
-		["ü",'\\"u'],
-		["Ö",'\\"O'],
-		["ö",'\\"o'],
-		["Ä",'\\"A'],
-		["ä",'\\"a'],
-		["€","EUR"],
-		["ß","\\ss "],
-		[" ", " $ \cong $ "],
-		["", " $ \lambda $ "],
-		["µ"," $\mu $ "],
-		["μ"," $\mu$ "],
-		["&", "\&"],
-		[" "," "], #different spaces
-		#[" "," !SPECIAL CHAR! "],
-		["m","a"], #todo
-		#[")","!SPECIAL CHAR! "],
-		[""," $\\rightarrow$ "],
-		["°", "\degree"], #todo
-		["↑"," $\\uparrow$ "], #todo
-		["↓","$ \\downarrow$ "],
-		["↔"," $\leftrightarrow$ "],
-		[""," $\Omega$ "],
-		[""," $A$ "],
-		["<<"," $<<$ "],
-		[""," "], #yet another space
-		["^2", " $^2$ "],
-		["²", " $^2$ "],
-		[""," $\\alpha$ "],
-		["", " $\\theta$ "],
-		["", " !!!SPECIALCHAR!!! !(underscore 2)! "],
-		["", " $\\rho$ "],
-		[""," $\\tau$ "],
-		["", " $\\beta$ "],
-		["", " !!!SPECIALCHAR!!! !(underscore c)! "],
-		["", " $\Phi$ "],
-		["Σ", " $\sum$ "],
-		#["", " !SPECIALCHAR! "],
-		#["", " !SEPCIALCHAR! "],
-		["≈", " $\\approx$ "],
-		[""," $\in$ "],
-		#[""," !SPECIALCHAR! "],
-		#[""," !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		#["θ", " !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		#["≥", " !SPECIALCHAR! "],
-		["_", "\_"],
-		#["", " !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		["½", " !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		#["", " !SPECIALCHAR! "],
-		["", " "],
-		["", " "],
-		[""," "],
-		["", " "],
-		["~", " $\\sim$ "],
-		["" , "$ \kappa $ "],
-		["…", "$\dots$"],
-		["≥"," $\geq$ "],
-		["θ", " $\\theta$ "],
-		["‘", "'"],
-		["’", "'"],
-		] #todo       ½      
 
 def processText(s): # replace special characters
 	for r in replaceCharTable:
@@ -161,12 +82,6 @@ def processText(s): # replace special characters
 def isFloat(s):
 	try: return (float(s) == float(s))
 	except (ValueError, TypeError), e: return False
-
-#def usage():
-	#print "Usage:"
-	#print "\tpython toLatex.py <ImpressFile> -o <OutputFile> <AdditionalParameters>"
-	#print "<AdditionalParameters> Overview:"
-	#print "\t --verbose / -v"
 
 #info
 #if len(sys.argv) <= 1:
@@ -191,10 +106,11 @@ if __name__ == '__main__':
 	parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="show some debugging info")
 	parser.add_argument('-ps', '--parse_section', dest='parse_section', action='store_true', help="trying to parse section, subsection, subsubsection from slide title")
 	parser.add_argument('-pi', '--parse_items', dest='parse_item', action='store_true', help="trying to parse nested items")
-	parser.add_argument('-ur', '--use_rput', dest='use_rput', action='store_true', help="image positioning will be done rput")
+	parser.add_argument('-ur', '--use_rput', dest='use_rput', action='store_true', help="image positioning will be done using rput")
+	parser.add_argument('-t', metavar='templateFileName', dest="templateFileName", type=str,  help='the generated latex code will be placed at the bottom of the file')
 
 	#TODO parameter ideas
-	#-tex template e.g with placeholder, where the content should be placed
+	#DONE -tex template e.g with placeholder, where the content should be placed
 	#-user defined image path
 	#-user defined image export format
 	# ...
@@ -208,6 +124,8 @@ if __name__ == '__main__':
 	use_rput = args.use_rput
 	parse_section = args.parse_section
 	parse_item = args.parse_item
+	templateFileName = args.templateFileName
+	print templateFileName
 	if args.version:
 		print "ImpressToLatex Version: "+impressToLatexVersion
 		sys.exit(3)
@@ -254,6 +172,18 @@ texHead = '''\documentclass[10pt,a4paper]{beamer}
 	#outputFilename = os.path.basename(os.path.splitext(inputFilename)[0] + '.tex')
 #outputFilename = "output.tex"
 #os.path.isfile(fname)
+#val = open("char_table.txt","w")
+#val.write("[")
+#val.write(",\n".join(str(elem) for elem in replaceCharTable))
+#val.write("]")
+charTable = open("char_table.txt","r")
+replaceCharTable = eval(charTable.read())
+
+templateFile = open(templateFileName,"r")
+texHead = templateFile.read()
+
+print texHead
+
 if os.path.exists(outputFilename):
 	os.remove(outputFilename)
 
@@ -276,6 +206,8 @@ subSubSection = ""
 def closeFrame(force = False):
 	global frameOpened
 	global pageBody
+	print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!NEWPAGE"
+	print firstTitle, frameOpened, force
 	if (not firstTitle and frameOpened) or force:
 		texFile.write(pageBody)
 		texFile.write("\\end{frame} %close frame \n\n\n") 
@@ -290,7 +222,7 @@ def writeLinesAsItemize(lines, prefix = ""):
 		if line.strip() == "": # empty items
 			continue
 		line = processText(unicode(line).encode("utf-8")) #line.replace("\\", "\\textbackslash ") # replace backslash
-		print line
+		#print line
 		pageBody += prefix+"\t\t\item "+str(line)+"\n"
 	pageBody += prefix+"\t\\end{itemize} \n"
 
@@ -322,7 +254,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 	if verbose:
 		print "\n[INFO] Processing Page %(page)04d/%(pages)04d\n" %{"page": i, "pages": pageCnt - 1}
 	for j in range(page.Count): #iterate over page elements
-		print page.Count, j
+		#print page.Count, j
 		element = page.getByIndex(j)
 		#print type(element)
 		if debug:
@@ -336,10 +268,12 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 		x = element.getPosition().X/10000.0
 		y = element.getPosition().Y/10000.0
 
-		if 'com.sun.star.presentation.TitleTextShape' in element.SupportedServiceNames: #title
-			print "[Title]"
+		#
+		if  'com.sun.star.presentation.TitleTextShape'  in element.SupportedServiceNames: #title
+			#print "[Title]"
 			#closeFrame();
 			s = element.Text.getString()
+			print s
 			s = processText(unicode(s).encode("utf-8"))
 
 			if parse_section: #TODO: ugly
@@ -505,7 +439,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 			writeEPS(desktop, document, png_url, context, element);
 			addImageToPageBody(os.path.splitext(os.path.basename(relpng_filename))[0], x, y, "SHAPE")
 			#pageBody += comment+"\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relpng_filename))[0]+"}} %SHAPE \n"
-		print pageBody
+		#print pageBody
 
 
 closeFrame(True)
