@@ -47,7 +47,7 @@ def writePNG(desktop, doc, url, ctx, element):
 	graphic_filter = smgr.createInstanceWithContext(
 			"com.sun.star.drawing.GraphicExportFilter", ctx)
 	graphic_filter.setSourceDocument(collection)
-	#print "[GRAPHIC SUPPORTED EXPORT FILES]"+str(graphic_filter.getSupportedMimeTypeNames())
+	#print( "[GRAPHIC SUPPORTED EXPORT FILES]"+str(graphic_filter.getSupportedMimeTypeNames()))
 	graphic_filter.filter(tuple(args))
 
 
@@ -80,8 +80,9 @@ def processText(s): # replace special characters
 	return str(s)
 
 def isFloat(s):
-	try: return (float(s) == float(s))
-	except (ValueError, TypeError), e: return False
+    return True
+	# try: return (float(s) == float(s))
+	# except (ValueError, TypeError), e: return False
 
 #info
 #if len(sys.argv) <= 1:
@@ -101,7 +102,7 @@ if __name__ == '__main__':
 	parser.add_argument('output', metavar='OutputFilename', type=str,  help='the resulting .tex file')
 	parser.add_argument('-start', metavar='start', type=int,  help='Start Page', default = 0)
 	parser.add_argument('-end', metavar='end', type=int,  help='End Page', default = -1)
-	parser.add_argument('--version',dest="version", action="store_true", help="print version")
+	parser.add_argument('--version',dest="version", action="store_true", help="print( version")
 	parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help="show some processing info")
 	parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="show some debugging info")
 	parser.add_argument('-ps', '--parse_section', dest='parse_section', action='store_true', help="trying to parse section, subsection, subsubsection from slide title")
@@ -125,9 +126,9 @@ if __name__ == '__main__':
 	parse_section = args.parse_section
 	parse_item = args.parse_item
 	templateFileName = args.templateFileName
-	print templateFileName
+	print((templateFileName))
 	if args.version:
-		print "ImpressToLatex Version: "+impressToLatexVersion
+		print( "ImpressToLatex Version: "+impressToLatexVersion)
 		sys.exit(3)
 
 inputFileUrl = unohelper.systemPathToFileUrl(inputFilename)
@@ -141,29 +142,11 @@ desktop = context.ServiceManager.createInstanceWithContext("com.sun.star.frame.D
 document = desktop.loadComponentFromURL(inputFileUrl ,"_blank", 0, ()) # existing document
 
 pageCnt = document.DrawPages.Count
-print pageCnt
+print( pageCnt)
 
 texHead = '''\documentclass[10pt,a4paper]{beamer}
-\usepackage[utf8]{inputenc}
-%\usepackage{eurosym}
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amssymb}
-\usetheme{Berlin}
-\usepackage[T1]{fontenc}
-\usepackage{epstopdf}
-\usepackage{pstricks}
-\usepackage{gensymb}
-
-\def\\twolang#1#2{#1}
-\let\\2=\\twolang
-
-
-\graphicspath{{./images/}}
-
-\\author{Author}
-\\begin{document}
-\maketitle\n'''
+\\begin{document}'''
+# \maketitle\n'''
 
 #texFile = open(os.path.splitext(inputFilename)[0]+"tex", "w")
 #if len(sys.argv) >= 2:
@@ -182,7 +165,7 @@ replaceCharTable = eval(charTable.read())
 templateFile = open(templateFileName,"r")
 texHead = templateFile.read()
 
-print texHead
+print( texHead)
 
 if os.path.exists(outputFilename):
 	os.remove(outputFilename)
@@ -201,13 +184,13 @@ subSection = ""
 subSubSection = ""
 #if len(sys.argv) >= 3:
 	#pageCnt = int(sys.argv[3])
-	#print pageCnt
+	#print( pageCnt)
 
 def closeFrame(force = False):
 	global frameOpened
 	global pageBody
-	print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!NEWPAGE"
-	print firstTitle, frameOpened, force
+	print( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!NEWPAGE")
+	print( firstTitle, frameOpened, force)
 	if (not firstTitle and frameOpened) or force:
 		texFile.write(pageBody)
 		texFile.write("\\end{frame} %close frame \n\n\n") 
@@ -222,7 +205,7 @@ def writeLinesAsItemize(lines, prefix = ""):
 		if line.strip() == "": # empty items
 			continue
 		line = processText(unicode(line).encode("utf-8")) #line.replace("\\", "\\textbackslash ") # replace backslash
-		#print line
+		#print( line)
 		pageBody += prefix+"\t\t\item "+str(line)+"\n"
 	pageBody += prefix+"\t\\end{itemize} \n"
 
@@ -252,17 +235,17 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 	closeFrame()
 	page = document.DrawPages.getByIndex(i)
 	if verbose:
-		print "\n[INFO] Processing Page %(page)04d/%(pages)04d\n" %{"page": i, "pages": pageCnt - 1}
+		print( "\n[INFO] Processing Page %(page)04d/%(pages)04d\n" %{"page": i, "pages": pageCnt - 1})
 	for j in range(page.Count): #iterate over page elements
-		#print page.Count, j
+		#print( page.Count, j)
 		element = page.getByIndex(j)
-		#print type(element)
+		#print( type(element))
 		if debug:
-			print element.Name
-			print element
+			print( element.Name)
+			print( element)
 
-		#print element.Text.getString()
-		#print "\t"+str(element)
+		#print( element.Text.getString())
+		#print( "\t"+str(element))
 
 		#TODO: Calc a better, more correct x/y position for images
 		x = element.getPosition().X/10000.0
@@ -270,36 +253,36 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 
 		#
 		if  'com.sun.star.presentation.TitleTextShape'  in element.SupportedServiceNames: #title
-			#print "[Title]"
+			#print( "[Title]")
 			#closeFrame();
 			s = element.Text.getString()
-			print s
+			print( s)
 			s = processText(unicode(s).encode("utf-8"))
 
 			if parse_section: #TODO: ugly
 				lines = s.split("\n")
 				if len(lines) > 0 and len(lines[0].split()) > 1 and isFloat(lines[0].split()[0]):
 					newSection = lines[0].split()[1].strip()
-					#print "xxx"+newSection
-					if newSection <> section:
+					#print( "xxx"+newSection)
+					if newSection != section:
 						texFile.write("\\section{"+newSection+"}\n")
 						section = newSection
-						#print newSection+"\n\n"
+						#print( newSection+"\n\n")
 						#s = lines[1:]
 					#section = lines[0];
 					if len(lines) > 1:
 						newSubSection = lines[1].strip()
-						#print lines[1]
-						if newSubSection <> subSection:
+						#print( lines[1])
+						if newSubSection != subSection:
 							texFile.write("\\subsection{"+newSubSection+"}\n")
 							subSection = newSubSection
-							#print newSubSection;
+							#print( newSubSection;)
 						if len(lines) > 2:
 							newSubSubSection = lines[2].strip()
-							if newSubSubSection <> subSubSection:
+							if newSubSubSection != subSubSection:
 								texFile.write("\\subsubsection{"+newSubSubSection+"}\n")
 								subSubSection = newSubSubSection
-								#print newSubSubSection;
+								#print( newSubSubSection;)
 
 			texFile.write("\\begin{frame}\n")
 			if parse_section:
@@ -309,25 +292,25 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 				if not title:
 					title = section
 				if title:
-					print "Title", title
+					print( "Title", title)
 					texFile.write("\t\\frametitle{"+subSubSection+"} \n")
 			else:
 				texFile.write("\t\\frametitle{"+s+"} \n")
 			firstTitle = False
 			frameOpened = True
 			#texFile.write(pageBody)
-			#print pageBody
+			#print( pageBody)
 			#pageBody = ""
 
 		elif 'com.sun.star.drawing.TextShape' in element.SupportedServiceNames:#text as itemize
 			if verbose:
-				print "[TEXTSHAPE]"
+				print( "[TEXTSHAPE]")
 			lines = element.Text.getString().split("\n")
-			#print lines
+			#print( lines)
 			#texFile.write(element.Text.getString()+"\n")
-			#print lines 
+			#print( lines )
 			if debug:
-				print element
+				print( element)
 
 			if lines[0] == "<number>": # page numbers?
 				continue
@@ -337,18 +320,18 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 				lastNumberingLevel = -1
 				#el = a.nextElement()
 				while a.hasMoreElements():
-					#print el
+					#print( el)
 					el = a.nextElement()
 					text = processText(unicode(el.getString()).encode("utf-8")).strip()
 					if text :
-						print text
+						print( text)
 					#if el.ImplementationName == "SvxUnoTextContent":
 						#texFile.write(text)
 						#if debug:
-							#print text
+							#print( text)
 						#continue
 					tabIndent = "\t"*el.NumberingLevel
-					print "numberinglevel", el.NumberingLevel, lastNumberingLevel
+					print( "numberinglevel", el.NumberingLevel, lastNumberingLevel)
 					if el.NumberingLevel > lastNumberingLevel and el.NumberingLevel >= 1:
 						pageBody += tabIndent+"\\begin{itemize} \n"
 					if el.NumberingLevel < lastNumberingLevel:
@@ -358,10 +341,10 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 							pageBody += tabIndent+"\t\item "+text+"\n"
 						else:
 							pageBody += text+"\n" #standard text
-					print el.NumberingLevel, text
+					print( el.NumberingLevel, text)
 					#el = a.nextElement()
-					print "aaaaaaaaaaaa", (not a.hasMoreElements()) or el.NumberingLevel < lastNumberingLevel, el.NumberingLevel < lastNumberingLevel, not a.hasMoreElements(), el.NumberingLevel, lastNumberingLevel
-					#print a
+					print( "aaaaaaaaaaaa", (not a.hasMoreElements()) or el.NumberingLevel < lastNumberingLevel, el.NumberingLevel < lastNumberingLevel, not a.hasMoreElements(), el.NumberingLevel, lastNumberingLevel)
+					#print( a)
 					lastNumberingLevel = el.NumberingLevel
 
 					if (not a.hasMoreElements()) or el.NumberingLevel < lastNumberingLevel:
@@ -369,7 +352,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 							levelDifference = lastNumberingLevel
 						else:
 							levelDifference = lastNumberingLevel - el.NumberingLevel
-						print el.NumberingLevel, lastNumberingLevel, levelDifference
+						print( el.NumberingLevel, lastNumberingLevel, levelDifference)
 						for cnt in range(levelDifference):
 							if not a.hasMoreElements():
 								tabCnt = levelDifference - cnt 
@@ -387,7 +370,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 			if graphicsFileName:
 				releps_filename = "images/"+os.path.basename(os.path.splitext(graphicsFileName)[0] + '.eps')
 				if verbose:
-					print "[GRAPHIC] "+ releps_filename
+					print( "[GRAPHIC] "+ releps_filename)
 
 				eps_filename = os.path.expanduser(releps_filename)
 				eps_filename = os.path.abspath(eps_filename)
@@ -402,15 +385,15 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 			emfFilename = os.path.abspath(emfFilename)
 			emfUrl = unohelper.systemPathToFileUrl(emfFilename)
 			if verbose:
-				print "[EPS] "+relemf_filename
+				print( "[EPS] "+relemf_filename)
 			if debug:
 				width =  int(element.getSize().Width)
 				height = int(element.getSize().Height)
-				print width, height
+				print( width, height)
 
 			if relemf_filename not in ["images/0048_004_diagram.eps", "images/0058_003_diagram.eps"] :
 				writeEPS(desktop, document, emfUrl, context, element)
-			#print textLine
+			#print( textLine)
 			addImageToPageBody(os.path.splitext(os.path.basename(relemf_filename))[0], x, y, "VECTOR GRAPHIC")	
 			#pageBody += "\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relemf_filename))[0]+"}} %VECTOR GRAPHIC \n"
 
@@ -419,19 +402,19 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 			# filter 
 			if element.getSize().Width == 3197 and element.getSize().Height == 3201:
 				if verbose:
-					print "[FILTER CIRCLE]"
+					print( "[FILTER CIRCLE]")
 				continue # filter ugly circles
 			relpng_filename = "images/%(page)04d_%(element)03d_shape.eps" %{"page": i, "element": j}
 			png_filename = os.path.expanduser(relpng_filename)
 			png_filename = os.path.abspath(png_filename)
 			png_url = unohelper.systemPathToFileUrl(png_filename)
 			if verbose:
-				print "[SHAPE] "+relpng_filename, png_filename, element.getSize().Width, element.getSize().Height
+				print( "[SHAPE] "+relpng_filename, png_filename, element.getSize().Width, element.getSize().Height)
 			comment = ""
 			if "com.sun.star.drawing.Text" in element.SupportedServiceNames:
 				text = element.Text.getString()
 				if debug:
-					print text
+					print( text)
 				if text:
 					lines = text.split("\n")
 					writeLinesAsItemize(lines, "%")
@@ -439,7 +422,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 			writeEPS(desktop, document, png_url, context, element);
 			addImageToPageBody(os.path.splitext(os.path.basename(relpng_filename))[0], x, y, "SHAPE")
 			#pageBody += comment+"\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relpng_filename))[0]+"}} %SHAPE \n"
-		#print pageBody
+		#print( pageBody)
 
 
 closeFrame(True)
@@ -451,5 +434,5 @@ texFile.write("\end{document}")
 texFile.close()
 
 if verbose:
-	print "\n[INFO] Document converted"
+	print( "\n[INFO] Document converted")
 
