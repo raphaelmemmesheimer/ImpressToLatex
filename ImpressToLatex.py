@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding: utf-8
 
 #This program is free software; you can redistribute it and/or modify
@@ -32,6 +32,20 @@ from com.sun.star.beans.PropertyState import DIRECT_VALUE
 
 impressToLatexVersion = "0.0"
 
+#######################################################
+# Fix Python 2.x.
+
+try:
+    UNICODE_EXISTS = bool(type(unicode))
+    tounicode = lambda s: tounicode2(s)
+except NameError:
+    unicode   = lambda s: str(s)
+    tounicode = lambda s: str(s)
+
+def tounicode2(line):     # required in python2
+    return unicode(line).encode("utf-8") 
+
+#######################################################
 
 #found @ http://user.services.openoffice.org/en/forum/viewtopic.php?f=45&t=44220
 def writePNG(desktop, doc, url, ctx, element):
@@ -75,9 +89,12 @@ def writeEPS(desktop, doc, url, ctx, element):
 
 
 def processText(s): # replace special characters
-	for r in replaceCharTable:
-		s = s.replace(r[0], r[1])
-	return str(s)
+    s1 = str(s)
+    s1 = s
+    for r in replaceCharTable:
+            # print("should replace " + r[0] + " by " + r[1] + " in " + s1 + "\n")
+            s1 = s1.replace(r[0], r[1])
+    return str(s1)
 
 def isFloat(s):
     return True
@@ -92,14 +109,14 @@ def isFloat(s):
 #os.system('/opt/openoffice.org3/program/soffice -accept="socket,host=localhost,port=2002;urp;StarOffice.ServiceManager" &')
 
 inputFilename = ""
-outputFilename = ""
+outputLaTeXfile = ""
 parse_section = False
 verbose = False
 debug = False
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Converting an (Libre|Open) Office Impress readable presentation to a Latex file',epilog='https://github.com/airglow/ImpressToLatex')
 	parser.add_argument('input', metavar='InputFilename', type=str,  help='the file to convert, preferably .odp')
-	parser.add_argument('output', metavar='OutputFilename', type=str,  help='the resulting .tex file')
+	parser.add_argument('output', metavar='outputLaTeXfile', type=str,  help='the resulting .tex file')
 	parser.add_argument('-start', metavar='start', type=int,  help='Start Page', default = 0)
 	parser.add_argument('-end', metavar='end', type=int,  help='End Page', default = -1)
 	parser.add_argument('--version',dest="version", action="store_true", help="print( version")
@@ -117,7 +134,7 @@ if __name__ == '__main__':
 	# ...
 	args = parser.parse_args()
 	inputFilename = args.input
-	outputFilename = args.output
+	outputLaTeXfile = args.output
 	startPageNo = args.start
 	endPageNo = args.end
 	debug = args.debug
@@ -145,38 +162,43 @@ pageCnt = document.DrawPages.Count
 print( pageCnt)
 
 texHead = '''\documentclass[10pt,a4paper]{beamer}
-TODO: fill latex header code
+% TODO: fill latex header code
+\\graphicspath{{./images/}}
+\\usepackage[utf8]{inputenc}
 \\begin{document}'''
 # \maketitle\n'''
 
 #texFile = open(os.path.splitext(inputFilename)[0]+"tex", "w")
 #if len(sys.argv) >= 2:
-	#outputFilename = sys.argv[2]
+#   outputLaTeXfile = sys.argv[2]
 #else:
-	#outputFilename = os.path.basename(os.path.splitext(inputFilename)[0] + '.tex')
-#outputFilename = "output.tex"
+#   outputLaTeXfile = os.path.basename(os.path.splitext(inputFilename)[0] + '.tex')
+#outputLaTeXfile = "output.tex"
 #os.path.isfile(fname)
 #val = open("char_table.txt","w")
 #val.write("[")
 #val.write(",\n".join(str(elem) for elem in replaceCharTable))
 #val.write("]")
+
 charTable = open("char_table.txt","r")
 replaceCharTable = eval(charTable.read())
 
-templateFile = open(templateFileName,"r")
-texHead = templateFile.read()
+# templateFile = open(templateFileName,"r")
+# texHead = templateFile.read()
 
-print( texHead)
+print(texHead)
 
-if os.path.exists(outputFilename):
-	os.remove(outputFilename)
+if os.path.exists(outputLaTeXfile):
+	os.remove(outputLaTeXfile)
 
-texFile = open(outputFilename, "w")
+texFile = open(outputLaTeXfile, "w")
+basefile = os.path.basename(outputLaTeXfile)
+basename = os.path.splitext(basefile)[0]
+texFile.write('% ' + basename + '\n')
 texFile.write(texHead)
 texFile.write("");
 
 pageBody = ""
-
 
 firstTitle = True
 frameOpened = False
@@ -201,16 +223,20 @@ def closeFrame(force = False):
 def writeLinesAsItemize(lines, prefix = ""):
 	global pageBody
 	#old implementation (each line results in an itemize entry)				
-	pageBody += prefix+"\t\\begin{itemize} \n"
+	empty = 1
 	for line in lines:
 		if line.strip() == "": # empty items
-			continue
-		line = processText(unicode(line).encode("utf-8")) #line.replace("\\", "\\textbackslash ") # replace backslash
-		#print( line)
-		pageBody += prefix+"\t\t\item "+str(line)+"\n"
-	pageBody += prefix+"\t\\end{itemize} \n"
-
-
+		   continue
+		empty = 0
+	if empty < 1 :
+	    pageBody += prefix+"\t\\begin{itemize} \n"
+	    for line in lines:
+		    if line.strip() == "": # empty items
+			    continue
+		    line = processText(tounicode(line)) #line.replace("\\", "\\textbackslash ") # replace backslash
+		    #print( line)
+		    pageBody += prefix+"\t\t\item "+str(line)+"\n"
+	    pageBody += prefix+"\t\\end{itemize} \n"
 
 
 def addImageToPageBody(imgFileName, posx = 0, posy = 0, comment = ""):
@@ -258,7 +284,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 			#closeFrame();
 			s = element.Text.getString()
 			print( s)
-			s = processText(unicode(s).encode("utf-8"))
+			s = processText(tounicode(s))
 
 			if parse_section: #TODO: ugly
 				lines = s.split("\n")
@@ -285,6 +311,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 								subSubSection = newSubSubSection
 								#print( newSubSubSection;)
 
+			texFile.write("% Frame " + str(i) + "\n")
 			texFile.write("\\begin{frame}\n")
 			if parse_section:
 				title = subSubSection
@@ -323,7 +350,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 				while a.hasMoreElements():
 					#print( el)
 					el = a.nextElement()
-					text = processText(unicode(el.getString()).encode("utf-8")).strip()
+					text = processText(tounicode(el.getString())).strip()
 					if text :
 						print( text)
 					#if el.ImplementationName == "SvxUnoTextContent":
@@ -369,7 +396,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 			graphicsFileName = element.GraphicStreamURL
 			#graphicsFileName = "images/%(page)04d_%(element)03d_image.png" %{"page": i, "element": j}
 			if graphicsFileName:
-				releps_filename = "images/"+os.path.basename(os.path.splitext(graphicsFileName)[0] + '.eps')
+				releps_filename = "images/" + basename + "_" + os.path.basename(os.path.splitext(graphicsFileName)[0] + '.eps')
 				if verbose:
 					print( "[GRAPHIC] "+ releps_filename)
 
@@ -381,7 +408,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 				#pageBody += "\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(releps_filename))[0]+"}} %IMAGE \n"
 
 		elif 'com.sun.star.drawing.OLE2Shape' in element.SupportedServiceNames: #hopefully stuff like visio drawings, there is an error in exporting these kind of data with libreoffice (blank file)
-			relemf_filename = "images/%(page)04d_%(element)03d_diagram.eps" %{"page": i, "element": j}
+			relemf_filename = "images/" + basename + "_" + "%(page)04d_%(element)03d_diagram.eps" %{"page": i, "element": j}
 			emfFilename = os.path.expanduser(relemf_filename)
 			emfFilename = os.path.abspath(emfFilename)
 			emfUrl = unohelper.systemPathToFileUrl(emfFilename)
@@ -392,11 +419,11 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 				height = int(element.getSize().Height)
 				print( width, height)
 
-			if relemf_filename not in ["images/0048_004_diagram.eps", "images/0058_003_diagram.eps"] :
+			if relemf_filename not in ["images/0048_004_diagram.eps", "images/0058_003_diagram.eps"] : # DP ???
 				writeEPS(desktop, document, emfUrl, context, element)
 			#print( textLine)
 			addImageToPageBody(os.path.splitext(os.path.basename(relemf_filename))[0], x, y, "VECTOR GRAPHIC")	
-			#pageBody += "\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relemf_filename))[0]+"}} %VECTOR GRAPHIC \n"
+			#pageBody += "\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{os.path.splitext(os.path.basename(relemf_filename))[0]+"}} %VECTOR GRAPHIC \n"
 
 
 		elif 'com.sun.star.drawing.Shape' in element.SupportedServiceNames: #485 479
@@ -405,7 +432,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 				if verbose:
 					print( "[FILTER CIRCLE]")
 				continue # filter ugly circles
-			relpng_filename = "images/%(page)04d_%(element)03d_shape.eps" %{"page": i, "element": j}
+			relpng_filename = "images/" + basename + "_" + "%(page)04d_%(element)03d_shape.eps" %{"page": i, "element": j}
 			png_filename = os.path.expanduser(relpng_filename)
 			png_filename = os.path.abspath(png_filename)
 			png_url = unohelper.systemPathToFileUrl(png_filename)
