@@ -50,6 +50,8 @@ def tounicode2(line):     # required in python2
 #found @ http://user.services.openoffice.org/en/forum/viewtopic.php?f=45&t=44220
 def writePNG(desktop, doc, url, ctx, element):
 	smgr = ctx.getServiceManager()
+	if verbose:
+	    print("Write PNG image " + url + "\n")
 	# choose drawings which you want to export
 	collection = smgr.createInstanceWithContext("com.sun.star.drawing.ShapeCollection", ctx)
 	collection.add(element)
@@ -62,11 +64,14 @@ def writePNG(desktop, doc, url, ctx, element):
 			"com.sun.star.drawing.GraphicExportFilter", ctx)
 	graphic_filter.setSourceDocument(collection)
 	#print( "[GRAPHIC SUPPORTED EXPORT FILES]"+str(graphic_filter.getSupportedMimeTypeNames()))
-	graphic_filter.filter(tuple(args))
+	result = graphic_filter.filter(tuple(args))
+	return result
 
 
 def writeEPS(desktop, doc, url, ctx, element):
 	smgr = ctx.getServiceManager()
+	if verbose:
+	    print("Write EPS image " + url + "\n")
 	collection = smgr.createInstanceWithContext("com.sun.star.drawing.ShapeCollection", ctx)
 	collection.add(element)
 
@@ -85,7 +90,15 @@ def writeEPS(desktop, doc, url, ctx, element):
 	graphic_filter = smgr.createInstanceWithContext(
 			"com.sun.star.drawing.GraphicExportFilter", ctx)
 	graphic_filter.setSourceDocument(collection)
-	graphic_filter.filter(tuple(args))
+	result = graphic_filter.filter(tuple(args))
+	return result
+
+def writeIMG(desktop, doc, url, ctx, element):
+    global pdflatex
+    if pdflatex :
+        return writePNG(desktop, doc, url + ".png", ctx, element)
+    else :        
+        return writeEPS(desktop, doc, url + ".eps", ctx, element)
 
 
 def processText(s): # replace special characters
@@ -112,7 +125,10 @@ inputFilename = ""
 outputLaTeXfile = ""
 parse_section = False
 verbose = False
+dvips = False
+pdflatex = False
 debug = False
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Converting an (Libre|Open) Office Impress readable presentation to a Latex file',epilog='https://github.com/airglow/ImpressToLatex')
 	parser.add_argument('input', metavar='InputFilename', type=str,  help='the file to convert, preferably .odp')
@@ -120,6 +136,7 @@ if __name__ == '__main__':
 	parser.add_argument('-start', metavar='start', type=int,  help='Start Page', default = 0)
 	parser.add_argument('-end', metavar='end', type=int,  help='End Page', default = -1)
 	parser.add_argument('--version',dest="version", action="store_true", help="print( version")
+	parser.add_argument('-p', '--pdf', dest='pdflatex', action='store_true', help="prepare output for pdflatex")
 	parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help="show some processing info")
 	parser.add_argument('-d', '--debug', dest='debug', action='store_true', help="show some debugging info")
 	parser.add_argument('-ps', '--parse_section', dest='parse_section', action='store_true', help="trying to parse section, subsection, subsubsection from slide title")
@@ -139,6 +156,7 @@ if __name__ == '__main__':
 	endPageNo = args.end
 	debug = args.debug
 	verbose = args.verbose
+	pdflatex = args.pdflatex
 	use_rput = args.use_rput
 	parse_section = args.parse_section
 	parse_item = args.parse_item
@@ -147,6 +165,8 @@ if __name__ == '__main__':
 	if args.version:
 		print( "ImpressToLatex Version: "+impressToLatexVersion)
 		sys.exit(3)
+	if verbose:
+		print("PDFoutput: ", pdflatex)
 
 inputFileUrl = unohelper.systemPathToFileUrl(inputFilename)
 
@@ -212,8 +232,9 @@ subSubSection = ""
 def closeFrame(force = False):
 	global frameOpened
 	global pageBody
-	print( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!NEWPAGE")
-	print( firstTitle, frameOpened, force)
+	# print( "!!!!!!!!!!!!!!!!!!!!!!!!!!!!NEWPAGE")
+	if verbose:
+	    print( "Close frame: ", firstTitle, frameOpened, force)
 	if (not firstTitle and frameOpened) or force:
 		texFile.write(pageBody)
 		texFile.write("\\end{frame} %close frame \n\n\n") 
@@ -394,21 +415,22 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 
 		elif 'com.sun.star.drawing.GraphicObjectShape' in element.SupportedServiceNames: #graphics #TODO: may cut
 			graphicsFileName = element.GraphicStreamURL
-			#graphicsFileName = "images/%(page)04d_%(element)03d_image.png" %{"page": i, "element": j}
+			#graphicsFileName = "images/%(page)04d_%(element)03d_image" %{"page": i, "element": j}
 			if graphicsFileName:
-				releps_filename = "images/" + basename + "_" + os.path.basename(os.path.splitext(graphicsFileName)[0] + '.eps')
+				releps_filename = "images/" + basename + "_" + os.path.basename(os.path.splitext(graphicsFileName)[0] + '')
 				if verbose:
 					print( "[GRAPHIC] "+ releps_filename)
 
 				eps_filename = os.path.expanduser(releps_filename)
 				eps_filename = os.path.abspath(eps_filename)
 				eps_url = unohelper.systemPathToFileUrl(eps_filename)
-				writeEPS(desktop, document, eps_url, context, element)
-				addImageToPageBody(os.path.splitext(os.path.basename(releps_filename))[0], x, y, "IMAGE")
+				r = writeIMG(desktop, document, eps_url, context, element)
+				if r : 
+				   addImageToPageBody(os.path.splitext(os.path.basename(releps_filename))[0], x, y, "IMAGE")
 				#pageBody += "\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(releps_filename))[0]+"}} %IMAGE \n"
 
 		elif 'com.sun.star.drawing.OLE2Shape' in element.SupportedServiceNames: #hopefully stuff like visio drawings, there is an error in exporting these kind of data with libreoffice (blank file)
-			relemf_filename = "images/" + basename + "_" + "%(page)04d_%(element)03d_diagram.eps" %{"page": i, "element": j}
+			relemf_filename = "images/" + basename + "_" + "%(page)04d_%(element)03d_diagrams" %{"page": i, "element": j}
 			emfFilename = os.path.expanduser(relemf_filename)
 			emfFilename = os.path.abspath(emfFilename)
 			emfUrl = unohelper.systemPathToFileUrl(emfFilename)
@@ -419,10 +441,12 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 				height = int(element.getSize().Height)
 				print( width, height)
 
-			if relemf_filename not in ["images/0048_004_diagram.eps", "images/0058_003_diagram.eps"] : # DP ???
-				writeEPS(desktop, document, emfUrl, context, element)
+			r = 0
+			if relemf_filename not in ["images/0048_004_diagram", "images/0058_003_diagrams"] : # DP ???
+				r = writeIMG(desktop, document, emfUrl, context, element)
 			#print( textLine)
-			addImageToPageBody(os.path.splitext(os.path.basename(relemf_filename))[0], x, y, "VECTOR GRAPHIC")	
+			if r :
+			  addImageToPageBody(os.path.splitext(os.path.basename(relemf_filename))[0], x, y, "VECTOR GRAPHIC")	
 			#pageBody += "\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{os.path.splitext(os.path.basename(relemf_filename))[0]+"}} %VECTOR GRAPHIC \n"
 
 
@@ -432,7 +456,7 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 				if verbose:
 					print( "[FILTER CIRCLE]")
 				continue # filter ugly circles
-			relpng_filename = "images/" + basename + "_" + "%(page)04d_%(element)03d_shape.eps" %{"page": i, "element": j}
+			relpng_filename = "images/" + basename + "_" + "%(page)04d_%(element)03d_shape" %{"page": i, "element": j}
 			png_filename = os.path.expanduser(relpng_filename)
 			png_filename = os.path.abspath(png_filename)
 			png_url = unohelper.systemPathToFileUrl(png_filename)
@@ -447,8 +471,9 @@ for i in range(startPageNo, endPageNo): # iterate over pages range(pageCnt)
 					lines = text.split("\n")
 					writeLinesAsItemize(lines, "%")
 					#comment = "%"
-			writeEPS(desktop, document, png_url, context, element);
-			addImageToPageBody(os.path.splitext(os.path.basename(relpng_filename))[0], x, y, "SHAPE")
+			r = writeIMG(desktop, document, png_url, context, element);
+			if r :
+			  addImageToPageBody(os.path.splitext(os.path.basename(relpng_filename))[0], x, y, "SHAPE")
 			#pageBody += comment+"\t\\rput("+str(x)+", "+str(y)+"){\includegraphics[width=.4\linewidth]{"+os.path.splitext(os.path.basename(relpng_filename))[0]+"}} %SHAPE \n"
 		#print( pageBody)
 

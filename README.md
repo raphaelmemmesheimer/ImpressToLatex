@@ -1,9 +1,10 @@
 ImpressToLatex
 ==============
 
-A tiny script for exporting Latex from OO/Libre- Impress presentations.
+A small script for exporting Latex from OO/Libre- Impress presentations.
+(This can also be used to convert PPT to LaTeX, when you first store your PPT in ODP format.)
 
-It's intention is not to create a 1:1 representation of the input file, just converting should be made a bit more comfortable. Actually it's the result of a quick hack onto a griven problem thus the current state is not meant as an allround solution  
+Its intention is not to create a 1:1 representation of the input file, just converting should be made a bit more comfortable. Actually it's the result of a quick hack onto a griven problem thus the current state is not meant as an allround solution  
 
 Introductions
 =============
@@ -43,3 +44,15 @@ I used the following command:
 `$ pdflatex -shell-escape <texfile>`
 
 the "-shell-escape" parameter is needed in case the script includes some *.eps files
+
+Alternatively use latex and dvips.
+
+If you start the program using the -p option,
+the program will create PNG files for each graphics object which can be
+included directly into the PDF file when you run pdflatex
+
+$ ImpressToLatex.py -p <InputFileName> <OutPutFileName>`
+
+## 4) Tested 
+
+Tested with Libreoffice
